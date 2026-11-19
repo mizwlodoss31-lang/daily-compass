@@ -111,6 +111,15 @@ const ARTICLES = [
   }
 ];
 
+const SAMPLE_ARTICLES = ARTICLES;
+const STORAGE_KEY = "dc-articles-v1";
+let activeArticles = loadArticles();
+function loadArticles() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    return Array.isArray(stored) && stored.length ? stored : SAMPLE_ARTICLES;
+  } catch { return SAMPLE_ARTICLES; }
+}
 const CATEGORIES = ["すべて","国内・国際","経済・産業","科学・テクノロジー","思想・言語・文化","食・生活","エンタメ・ゲーム"];
 let currentView = "today";
 let currentCategory = "すべて";
@@ -145,8 +154,12 @@ function makeArticle(article) {
     const strong = document.createElement("strong"); strong.textContent = heading;
     p.append(strong, document.createTextNode(body)); card.append(p);
   });
+  if (article.publishedAt) { const meta = document.createElement("div"); meta.className = "article-meta"; meta.textContent = `公開：${article.publishedAt}`; card.append(meta); }
   const actions = document.createElement("div"); actions.className = "article-actions";
-  const source = document.createElement("span"); source.className = "source-placeholder"; source.textContent = "出典欄：実ニュース版で追加";
+  const source = article.url ? document.createElement("a") : document.createElement("span");
+  source.className = article.url ? "source-link" : "source-placeholder";
+  source.textContent = article.source ? `出典：${article.source}` : "出典情報なし";
+  if (article.url) { source.href = article.url; source.target = "_blank"; source.rel = "noopener noreferrer"; }
   const save = document.createElement("button"); save.className = "save-button" + (savedIds.has(article.id) ? " saved" : "");
   save.textContent = savedIds.has(article.id) ? "✓ 保存済み" : "＋ 保存する";
   save.addEventListener("click", () => {
@@ -158,8 +171,8 @@ function makeArticle(article) {
 }
 function render() {
   renderFilters();
-  let shown = ARTICLES;
-  if (currentView === "saved") shown = ARTICLES.filter(a => savedIds.has(a.id));
+  let shown = activeArticles;
+  if (currentView === "saved") shown = activeArticles.filter(a => savedIds.has(a.id));
   if (currentView === "archive") shown = [];
   if (currentView === "today" && currentCategory !== "すべて") shown = shown.filter(a => a.category === currentCategory);
   if (currentView === "saved" && currentCategory !== "すべて") shown = shown.filter(a => a.category === currentCategory);
@@ -167,7 +180,7 @@ function render() {
   shown.forEach(a => list.append(makeArticle(a)));
   empty.hidden = shown.length > 0;
   list.hidden = shown.length === 0;
-  document.querySelector("#articleCount").textContent = ARTICLES.length;
+  document.querySelector("#articleCount").textContent = activeArticles.length;
   document.querySelector("#savedCount").textContent = savedIds.size;
   document.querySelector("#filterCount").textContent = `${currentCategory} · ${shown.length}件`;
   document.querySelector("#listHeading").textContent = currentView === "today" ? "今日のニュース" : currentView === "saved" ? "保存記事" : "アーカイブ";
@@ -180,6 +193,30 @@ document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", (
   currentView = tab.dataset.view; currentCategory = "すべて"; render();
 }));
 render();
+
+const articleFile = document.querySelector("#articleFile");
+articleFile.addEventListener("change", async () => {
+  const file = articleFile.files && articleFile.files[0];
+  if (!file) return;
+  const status = document.querySelector("#importStatus");
+  try {
+    const data = JSON.parse(await file.text());
+    const articles = Array.isArray(data) ? data : data.articles;
+    const required = ["category", "title", "summary", "background", "impact", "outlook"];
+    if (!Array.isArray(articles) || !articles.length) throw new Error("articles配列が見つかりません。");
+    for (const [i, a] of articles.entries()) {
+      if (!a || required.some(k => typeof a[k] !== "string" || !a[k].trim())) throw new Error(`${i + 1}件目の記事に必須項目が不足しています。`);
+      if (a.url && !/^https?:\/\//i.test(a.url)) throw new Error(`${i + 1}件目のURLが正しくありません。`);
+    }
+    activeArticles = articles.map((a, i) => ({ tag: "ニュース", ...a, id: String(a.id || `import-${Date.now()}-${i}`) }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(activeArticles));
+    currentView = "today"; currentCategory = "すべて"; render();
+    status.textContent = `${activeArticles.length}件の記事を取り込みました。`;
+  } catch (error) {
+    status.textContent = `読み込みできませんでした：${error.message}`;
+  }
+  articleFile.value = "";
+});
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(console.error));

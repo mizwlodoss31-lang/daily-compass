@@ -55,3 +55,12 @@ h2 { font-size:15px; margin:0 0 12px; }
 .footer-note { margin-left:8px; font-size:10px; color:#8a969c; }
 @media (min-width:700px) { .article { padding:23px 26px 18px; } .article h3 { font-size:21px; } .article p { font-size:14px; } }
 @media (max-width:420px) { .shell { padding-left:14px; padding-right:14px; } .article { padding:17px 16px 14px; } .stats div { padding:10px; } .stats strong { font-size:19px; } }
+
+.import-panel { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:18px 0 4px; padding:14px 15px; background:#fff; border:1px solid var(--line); border-radius:12px; }
+.import-copy { display:flex; flex:1 1 190px; flex-direction:column; gap:2px; }
+.import-copy strong { font-size:13px; }
+.import-copy span,.import-status { color:var(--muted); font-size:11px; margin:0; }
+.import-button { display:inline-block; border:0; border-radius:22px; padding:8px 14px; color:#fff; background:var(--accent); font-size:12px; cursor:pointer; white-space:nowrap; }
+.import-status { flex-basis:100%; }
+.source-link { color:var(--accent); font-size:10px; text-decoration:underline; }
+.article-meta { color:var(--muted); font-size:10px; margin-top:4px; }
