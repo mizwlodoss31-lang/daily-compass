@@ -113,13 +113,38 @@ const ARTICLES = [
 
 const SAMPLE_ARTICLES = ARTICLES;
 const STORAGE_KEY = "dc-articles-v1";
+const ARCHIVE_KEY = "dc-archive-v1";
+const SAVED_KEY = "dc-saved";
+const SAVED_ARTICLES_KEY = "dc-saved-articles-v1";
+
+function readStorage(key, fallback) {
+  try { const value = JSON.parse(localStorage.getItem(key) || "null"); return value ?? fallback; }
+  catch { return fallback; }
+}
 let activeArticles = loadArticles();
 function loadArticles() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    return Array.isArray(stored) && stored.length ? stored : SAMPLE_ARTICLES;
-  } catch { return SAMPLE_ARTICLES; }
+  const stored = readStorage(STORAGE_KEY, null);
+  return Array.isArray(stored) && stored.length ? stored : SAMPLE_ARTICLES;
 }
+let archiveSets = readStorage(ARCHIVE_KEY, []);
+if (!Array.isArray(archiveSets)) archiveSets = [];
+let savedArticles = readStorage(SAVED_ARTICLES_KEY, {});
+if (!savedArticles || Array.isArray(savedArticles) || typeof savedArticles !== "object") savedArticles = {};
+const legacySavedIds = readStorage(SAVED_KEY, []);
+if (Array.isArray(legacySavedIds)) {
+  legacySavedIds.forEach(id => {
+    if (!savedArticles[id]) {
+      const article = activeArticles.find(item => String(item.id) === String(id));
+      if (article) savedArticles[id] = article;
+    }
+  });
+}
+function persistSaved() {
+  localStorage.setItem(SAVED_ARTICLES_KEY, JSON.stringify(savedArticles));
+  localStorage.setItem(SAVED_KEY, JSON.stringify(Object.keys(savedArticles)));
+}
+persistSaved();
+let savedIds = new Set(Object.keys(savedArticles));
 const CATEGORIES = ["すべて","国内・国際","経済・産業","科学・テクノロジー","思想・言語・文化","食・生活","エンタメ・ゲーム"];
 let currentView = "today";
 let currentCategory = "すべて";
@@ -143,6 +168,16 @@ function renderFilters() {
 function makeArticle(article) {
   const card = document.createElement("article");
   card.className = "article";
+  if (article.imageUrl && /^https?:\\/\\//i.test(article.imageUrl)) {
+    const image = document.createElement("img");
+    image.className = "article-thumbnail";
+    image.src = article.imageUrl;
+    image.alt = "";
+    image.loading = "lazy";
+    image.referrerPolicy = "no-referrer";
+    image.addEventListener("error", () => image.remove(), { once: true });
+    card.append(image);
+  }
   const top = document.createElement("div"); top.className = "article-top";
   const cat = document.createElement("span"); cat.className = "category-label"; cat.textContent = article.category;
   const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = article.tag;
@@ -163,8 +198,16 @@ function makeArticle(article) {
   const save = document.createElement("button"); save.className = "save-button" + (savedIds.has(article.id) ? " saved" : "");
   save.textContent = savedIds.has(article.id) ? "✓ 保存済み" : "＋ 保存する";
   save.addEventListener("click", () => {
-    if (savedIds.has(article.id)) savedIds.delete(article.id); else savedIds.add(article.id);
-    localStorage.setItem("dc-saved", JSON.stringify([...savedIds])); render();
+    const id = String(article.id);
+    if (savedIds.has(id)) {
+      savedIds.delete(id);
+      delete savedArticles[id];
+    } else {
+      savedIds.add(id);
+      savedArticles[id] = article;
+    }
+    persistSaved();
+    render();
   });
   actions.append(source, save); card.append(actions);
   return card;
@@ -172,22 +215,44 @@ function makeArticle(article) {
 function render() {
   renderFilters();
   let shown = activeArticles;
-  if (currentView === "saved") shown = activeArticles.filter(a => savedIds.has(a.id));
-  if (currentView === "archive") shown = [];
+  if (currentView === "saved") shown = Object.values(savedArticles);
   if (currentView === "today" && currentCategory !== "すべて") shown = shown.filter(a => a.category === currentCategory);
   if (currentView === "saved" && currentCategory !== "すべて") shown = shown.filter(a => a.category === currentCategory);
   list.innerHTML = "";
-  shown.forEach(a => list.append(makeArticle(a)));
+
+  if (currentView === "archive") {
+    const archivedArticles = archiveSets.flatMap(set =>
+      (set.articles || []).map(article => ({ ...article, _archiveDate: set.date || set.archivedAt || "" }))
+    );
+    const filtered = currentCategory === "すべて" ? archivedArticles :
+      archivedArticles.filter(article => article.category === currentCategory);
+    const groups = new Map();
+    filtered.forEach(article => {
+      const key = article._archiveDate || "日付不明";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(article);
+    });
+    groups.forEach((articles, date) => {
+      const heading = document.createElement("h3");
+      heading.className = "archive-date";
+      heading.textContent = date;
+      list.append(heading);
+      articles.forEach(article => list.append(makeArticle(article)));
+    });
+    shown = filtered;
+  } else {
+    shown.forEach(article => list.append(makeArticle(article)));
+  }
+
   empty.hidden = shown.length > 0;
   list.hidden = shown.length === 0;
   document.querySelector("#articleCount").textContent = activeArticles.length;
   document.querySelector("#savedCount").textContent = savedIds.size;
   document.querySelector("#filterCount").textContent = `${currentCategory} · ${shown.length}件`;
   document.querySelector("#listHeading").textContent = currentView === "today" ? "今日のニュース" : currentView === "saved" ? "保存記事" : "アーカイブ";
-  document.querySelector("#listSubheading").textContent = currentView === "archive" ? "過去の記事" : "全記事を掲載";
+  document.querySelector("#listSubheading").textContent = currentView === "archive" ? `${archiveSets.length}日分を保存` : "全記事を掲載";
   document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.view === currentView));
-  document.querySelector(".filter-section").hidden = currentView === "archive";
-  document.querySelector(".prototype-note").hidden = currentView === "archive" ? false : false;
+  document.querySelector(".filter-section").hidden = false;
 }
 document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
   currentView = tab.dataset.view; currentCategory = "すべて"; render();
@@ -208,7 +273,19 @@ articleFile.addEventListener("change", async () => {
       if (!a || required.some(k => typeof a[k] !== "string" || !a[k].trim())) throw new Error(`${i + 1}件目の記事に必須項目が不足しています。`);
       if (a.url && !/^https?:\/\//i.test(a.url)) throw new Error(`${i + 1}件目のURLが正しくありません。`);
     }
-    activeArticles = articles.map((a, i) => ({ tag: "ニュース", ...a, id: String(a.id || `import-${Date.now()}-${i}`) }));
+    const nextArticles = articles.map((a, i) => ({ tag: "ニュース", ...a, id: String(a.id || `import-${Date.now()}-${i}`) }));
+    if (activeArticles.length && !activeArticles.every(a => a.sample === true)) {
+      const today = new Date().toLocaleDateString("sv-SE");
+      const previous = archiveSets[0];
+      const sameAsLatestArchive = previous && previous.date === today &&
+        JSON.stringify(previous.articles) === JSON.stringify(activeArticles);
+      if (!sameAsLatestArchive) {
+        archiveSets.unshift({ date: today, archivedAt: new Date().toISOString(), articles: activeArticles });
+        archiveSets = archiveSets.slice(0, 180);
+        localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archiveSets));
+      }
+    }
+    activeArticles = nextArticles;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(activeArticles));
     currentView = "today"; currentCategory = "すべて"; render();
     status.textContent = `${activeArticles.length}件の記事を取り込みました。`;
