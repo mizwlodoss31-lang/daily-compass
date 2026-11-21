@@ -148,7 +148,6 @@ let savedIds = new Set(Object.keys(savedArticles));
 const CATEGORIES = ["すべて","国内・国際","経済・産業","科学・テクノロジー","思想・言語・文化","食・生活","エンタメ・ゲーム"];
 let currentView = "today";
 let currentCategory = "すべて";
-let savedIds = new Set(JSON.parse(localStorage.getItem("dc-saved") || "[]"));
 let deferredInstallPrompt = null;
 
 const list = document.querySelector("#newsList");
