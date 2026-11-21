@@ -168,7 +168,7 @@ function renderFilters() {
 function makeArticle(article) {
   const card = document.createElement("article");
   card.className = "article";
-  if (article.imageUrl && /^https?:\\/\\//i.test(article.imageUrl)) {
+  if (article.imageUrl && (article.imageUrl.startsWith("https://") || article.imageUrl.startsWith("http://"))) {
     const image = document.createElement("img");
     image.className = "article-thumbnail";
     image.src = article.imageUrl;
