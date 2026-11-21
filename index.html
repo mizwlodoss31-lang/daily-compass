@@ -41,7 +41,7 @@
       <div class="import-copy"><strong>記事データを取り込む</strong><span>ChatGPTで作成したDaily Compass用JSONを読み込みます。</span></div>
       <label class="import-button" for="articleFile">記事データを選択</label>
       <input id="articleFile" type="file" accept=".json,application/json" hidden>
-      <p id="importStatus" class="import-status" aria-live="polite">現在はレイアウト確認用のサンプル記事を表示しています。</p>
+      <p id="importStatus" class="import-status" aria-live="polite">GitHubから最新記事を自動取得します。</p>
     </section>
 
     <section class="filter-section">
@@ -64,7 +64,7 @@
         <p>保存した記事や過去の記事がここに表示されます。</p>
       </div>
     </section>
-    <p class="prototype-note">記事データはこの端末のブラウザ内に保存されます。別の端末との同期や自動更新は、今後の開発項目です。</p>
+    <p class="prototype-note">記事はGitHubから自動取得し、この端末にも保存されます。</p>
   </main>
 
   <footer class="footer">
@@ -86,7 +86,7 @@
       if (status) status.textContent = "アプリの処理エラー：" + String(event.reason || "詳細不明");
     });
   </script>
-  <script src="./app.js?v=5"
+  <script src="./app.js?v=6"
     onload="document.getElementById('importStatus').textContent='JavaScriptファイルの読み込みは成功しました。記事表示処理を確認中です。'"
     onerror="document.getElementById('importStatus').textContent='JavaScriptファイルを読み込めませんでした。'"></script>
 </body>
