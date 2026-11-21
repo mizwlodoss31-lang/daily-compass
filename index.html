@@ -72,6 +72,16 @@
     <span>Daily Compass</span>
     <span class="footer-note">A clearer view of the world.</span>
   </footer>
-  <script src="./app.js"></script>
+  <script>
+    window.addEventListener("error", function(event) {
+      const status = document.getElementById("importStatus");
+      if (status) status.textContent = "アプリの起動エラー：" + (event.message || "JavaScriptの読み込みに失敗しました") + (event.lineno ? "（" + event.lineno + "行目）" : "");
+    });
+    window.addEventListener("unhandledrejection", function(event) {
+      const status = document.getElementById("importStatus");
+      if (status) status.textContent = "アプリの処理エラー：" + String(event.reason || "詳細不明");
+    });
+  </script>
+  <script src="./app.js?v=4"></script>
 </body>
 </html>
