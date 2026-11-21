@@ -258,6 +258,63 @@ document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", (
 }));
 render();
 
+
+const LATEST_URL = "https://raw.githubusercontent.com/mizwlodoss31-lang/daily-compass/main/data/latest.json";
+let latestFetchInProgress = false;
+let lastLatestFetchAt = 0;
+
+function archiveCurrentSet() {
+  if (!activeArticles.length || activeArticles.every(article => article.sample === true)) return;
+  const ids = activeArticles.map(article => String(article.id)).sort().join("|");
+  const today = new Date().toLocaleDateString("sv-SE");
+  const previous = archiveSets[0];
+  const alreadyArchived = previous && previous.date === today &&
+    previous.articles.map(article => String(article.id)).sort().join("|") === ids;
+  if (!alreadyArchived) {
+    archiveSets.unshift({ date: today, archivedAt: new Date().toISOString(), articles: activeArticles });
+    archiveSets = archiveSets.slice(0, 180);
+    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archiveSets));
+  }
+}
+
+async function fetchLatestArticles() {
+  if (latestFetchInProgress || Date.now() - lastLatestFetchAt < 60_000) return;
+  latestFetchInProgress = true;
+  lastLatestFetchAt = Date.now();
+  const status = document.querySelector("#importStatus");
+  try {
+    const response = await fetch(`${LATEST_URL}?t=${Date.now()}`, { cache: "no-store", headers: { "Accept": "application/json" } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const articles = data && data.articles;
+    const required = ["category", "title", "summary", "background", "impact", "outlook"];
+    if (!Array.isArray(articles) || !articles.length || articles.some(a =>
+      !a || required.some(k => typeof a[k] !== "string" || !a[k].trim()))) {
+      throw new Error("最新記事JSONの形式が正しくありません。");
+    }
+    const nextArticles = articles.map((a, i) => ({ tag: "ニュース", ...a, id: String(a.id || `latest-${i}`) }));
+    const oldIds = activeArticles.map(a => String(a.id)).sort().join("|");
+    const newIds = nextArticles.map(a => String(a.id)).sort().join("|");
+    if (oldIds !== newIds || activeArticles.some(a => a.sample === true)) {
+      archiveCurrentSet();
+      activeArticles = nextArticles;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(activeArticles));
+      render();
+    }
+    if (status) status.textContent = `GitHubから最新記事${activeArticles.length}件を自動取得しました。`;
+  } catch (error) {
+    if (status) status.textContent = `最新記事の自動取得に失敗しました（${error.message}）。保存済みの記事を表示しています。`;
+  } finally {
+    latestFetchInProgress = false;
+  }
+}
+fetchLatestArticles();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") fetchLatestArticles();
+});
+window.addEventListener("focus", fetchLatestArticles);
+
+
 const articleFile = document.querySelector("#articleFile");
 articleFile.addEventListener("change", async () => {
   const file = articleFile.files && articleFile.files[0];
