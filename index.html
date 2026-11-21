@@ -74,6 +74,10 @@
   </footer>
   <script>
     window.addEventListener("error", function(event) {
+      if (event.target && event.target.tagName === "SCRIPT") {
+        const status = document.getElementById("importStatus");
+        if (status) status.textContent = "JavaScriptファイルの読み込みに失敗しました。";
+      }
       const status = document.getElementById("importStatus");
       if (status) status.textContent = "アプリの起動エラー：" + (event.message || "JavaScriptの読み込みに失敗しました") + (event.lineno ? "（" + event.lineno + "行目）" : "");
     });
@@ -82,6 +86,8 @@
       if (status) status.textContent = "アプリの処理エラー：" + String(event.reason || "詳細不明");
     });
   </script>
-  <script src="./app.js?v=4"></script>
+  <script src="./app.js?v=5"
+    onload="document.getElementById('importStatus').textContent='JavaScriptファイルの読み込みは成功しました。記事表示処理を確認中です。'"
+    onerror="document.getElementById('importStatus').textContent='JavaScriptファイルを読み込めませんでした。'"></script>
 </body>
 </html>
