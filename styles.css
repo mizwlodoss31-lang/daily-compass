@@ -64,3 +64,24 @@ h2 { font-size:15px; margin:0 0 12px; }
 .import-status { flex-basis:100%; }
 .source-link { color:var(--accent); font-size:10px; text-decoration:underline; }
 .article-meta { color:var(--muted); font-size:10px; margin-top:4px; }
+
+
+/* Article thumbnails and archive dates */
+.article-thumbnail {
+  display: block;
+  width: 100%;
+  max-height: 230px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 9px;
+  margin: 0 0 14px;
+  background: #edf1f1;
+}
+.archive-date {
+  margin: 18px 2px 0;
+  padding: 0 0 7px;
+  border-bottom: 1px solid var(--line);
+  color: var(--accent);
+  font-size: 14px;
+}
+.archive-date:first-child { margin-top: 4px; }
